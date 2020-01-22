@@ -171,7 +171,7 @@ wire led_locked;
 `ifndef DUAL_SDRAM
 	assign LED_POWER = (SW[3] | led_p) ? 1'bZ : 1'b0;
 	assign LED_HDD   = (SW[3] | led_d) ? 1'bZ : 1'b0;
-	assign LED_USER  = (SW[3] | led_u) ? 1'bZ : 1'b0;
+	assign LED_USER  = lat_led; // (SW[3] | led_u) ? 1'bZ : 1'b0;
 `endif
 
 //LEDs on main board
@@ -531,6 +531,10 @@ wire         vbuf_write;
 wire  [23:0] hdmi_data;
 wire         hdmi_vs, hdmi_hs, hdmi_de;
 
+wire lat_hs,lat_vs,lat_fl,lat_de;
+wire [7:0] lat_r,lat_g,lat_b;
+wire lat_led,lat_sense;
+
 ascal 
 #(
 	.RAMBASE(32'h20000000),
@@ -545,13 +549,13 @@ ascal
 
 	.i_clk    (clk_ihdmi),
 	.i_ce     (ce_hpix),
-	.i_r      (hr_out),
-	.i_g      (hg_out),
-	.i_b      (hb_out),
-	.i_hs     (hhs_fix),
-	.i_vs     (hvs_fix),
-	.i_fl     (f1),
-	.i_de     (hde_emu),
+	.i_r      (lat_r),
+	.i_g      (lat_g),
+	.i_b      (lat_b),
+	.i_hs     (lat_hs),
+	.i_vs     (lat_vs),
+	.i_fl     (lat_f1),
+	.i_de     (lat_de),
 	.iauto    (1),
 	.himin    (0),
 	.himax    (0),
@@ -608,6 +612,34 @@ ascal
 	.avl_read         (vbuf_read),
 	.avl_byteenable   (vbuf_byteenable)
 );
+
+
+latest
+#(.FREQ(50000000))
+latest
+(
+  .i_r(r_out),
+  .i_g(g_out),
+  .i_b(b_out),
+  .i_hs(hs_fix),
+  .i_vs(vs_fix),
+  .i_de(de_emu),
+  .i_fl(f1),
+  .i_en(ce_hpix),
+  .i_clk(clk_ihdmi),
+  .o_r(lat_r),
+  .o_g(lat_g),
+  .o_b(lat_b),
+  .o_hs(lat_hs),
+  .o_vs(lat_vs),
+  .o_de(lat_de),
+  .o_fl(lat_fl),
+  .ena(1),
+  .led(lat_led),
+  .sense(lat_sense),
+  .refclk(FPGA_CLK1_50)
+    );
+
 
 reg        FB_EN     = 0;
 reg        FB_FLT    = 0;
@@ -967,10 +999,10 @@ scanlines #(0) VGA_scanlines
 	.clk(clk_vid),
 
 	.scanlines(scanlines),
-	.din(de_emu ? {r_out, g_out, b_out} : 24'd0),
-	.hs_in(hs_fix),
-	.vs_in(vs_fix),
-	.de_in(de_emu),
+	.din(de_emu ? {lat_r, lat_g, lat_b} : 24'd0),
+	.hs_in(lat_hs),
+	.vs_in(lat_vs),
+	.de_in(lat_de),
 
 	.dout(vga_data_sl),
 	.hs_out(vga_hs_sl),
@@ -1121,8 +1153,11 @@ alsa alsa
 
 ////////////////  User I/O (USB 3.0 connector) /////////////////////////
 
-assign USER_IO[0] =                       !user_out[0]  ? 1'b0 : 1'bZ;
-assign USER_IO[1] =                       !user_out[1]  ? 1'b0 : 1'bZ;
+//assign USER_IO[0] =                       !user_out[0]  ? 1'b0 : 1'bZ;
+//assign USER_IO[1] =                       !user_out[1]  ? 1'b0 : 1'bZ;
+assign lat_sense = USER_IO[1];
+assign USER_IO[0] = lat_led;
+
 assign USER_IO[2] = !(SW[1] ? HDMI_I2S   : user_out[2]) ? 1'b0 : 1'bZ;
 assign USER_IO[3] =                       !user_out[3]  ? 1'b0 : 1'bZ;
 assign USER_IO[4] = !(SW[1] ? HDMI_SCLK  : user_out[4]) ? 1'b0 : 1'bZ;
