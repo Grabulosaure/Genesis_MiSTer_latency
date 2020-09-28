@@ -12,6 +12,7 @@ USE ieee.numeric_std.ALL;
 
 ENTITY latest IS
   GENERIC (
+    POST  : natural :=0;
     FREQ  : natural;
     RGB   : unsigned(23 DOWNTO 0) :=x"FFFFFF");
   PORT (
@@ -32,10 +33,11 @@ ENTITY latest IS
     o_b   : OUT unsigned(7 DOWNTO 0);
     o_hs  : OUT std_logic;
     o_vs  : OUT std_logic;
-	 o_fl  : OUT std_logic;
+    o_fl  : OUT std_logic;
     o_vl  : OUT std_logic;
     o_de  : OUT std_logic;
 
+    tog   : OUT std_logic;
     ena   : IN  std_logic;
     led   : OUT std_logic;
     sense : IN  std_logic;
@@ -50,38 +52,38 @@ ARCHITECTURE rtl OF latest IS
   
   TYPE arr_slv8 IS ARRAY (natural RANGE <>) OF unsigned(7 DOWNTO 0);
   CONSTANT CHARS : arr_slv8 :=(
-    x"3E", x"63", x"73", x"7B", x"6F", x"67", x"3E", x"00",  -- 0
-    x"0C", x"0E", x"0C", x"0C", x"0C", x"0C", x"3F", x"00",  -- 1
-    x"1E", x"33", x"30", x"1C", x"06", x"33", x"3F", x"00",  -- 2
-    x"1E", x"33", x"30", x"1C", x"30", x"33", x"1E", x"00",  -- 3
-    x"38", x"3C", x"36", x"33", x"7F", x"30", x"78", x"00",  -- 4
-    x"3F", x"03", x"1F", x"30", x"30", x"33", x"1E", x"00",  -- 5
-    x"1C", x"06", x"03", x"1F", x"33", x"33", x"1E", x"00",  -- 6
-    x"3F", x"33", x"30", x"18", x"0C", x"0C", x"0C", x"00",  -- 7
-    x"1E", x"33", x"33", x"1E", x"33", x"33", x"1E", x"00",  -- 8
-    x"1E", x"33", x"33", x"3E", x"30", x"18", x"0E", x"00",  -- 9
-    x"00", x"00", x"00", x"00", x"00", x"00", x"00", x"00",  -- ' '
-    x"00", x"00", x"33", x"7F", x"7F", x"6B", x"63", x"00",  -- m
-    x"00", x"00", x"3E", x"03", x"1E", x"30", x"1F", x"00",  -- s
-    x"30", x"18", x"0C", x"18", x"30", x"00", x"7E", x"00",  -- <=
-    x"0C", x"18", x"30", x"18", x"0C", x"00", x"7E", x"00",  -- >=   
-    x"00", x"30", x"49", x"06", x"30", x"49", x"06", x"00",  --  ~=
-    x"00", x"00", x"00", x"00", x"00", x"00", x"00", x"00",  --' ' 10
-    x"00", x"00", x"3F", x"00", x"00", x"3F", x"00", x"00",  -- =  11
-    x"00", x"0C", x"0C", x"3F", x"0C", x"0C", x"00", x"00",  -- +  12
-    x"00", x"00", x"00", x"3F", x"00", x"00", x"00", x"00",  -- -  13
-    x"18", x"0C", x"06", x"03", x"06", x"0C", x"18", x"00",  -- <  14
-    x"06", x"0C", x"18", x"30", x"18", x"0C", x"06", x"00",  -- >  15
-    x"08", x"1C", x"36", x"63", x"41", x"00", x"00", x"00",  -- ^  16
-    x"08", x"1C", x"36", x"63", x"41", x"00", x"00", x"00",  -- v  17
-    x"18", x"0C", x"06", x"06", x"06", x"0C", x"18", x"00",  -- (  18
-    x"06", x"0C", x"18", x"18", x"18", x"0C", x"06", x"00",  -- )  19
-    x"00", x"0C", x"0C", x"00", x"00", x"0C", x"0C", x"00",  -- :  1A
-    x"00", x"00", x"00", x"00", x"00", x"0C", x"0C", x"00",  -- .  1B
-    x"00", x"00", x"00", x"00", x"00", x"0C", x"0C", x"06",  -- ,  1C
-    x"1E", x"33", x"30", x"18", x"0C", x"00", x"0C", x"00",  -- ?  1D
-    x"18", x"18", x"18", x"00", x"18", x"18", x"18", x"00",  -- |  1E
-    x"36", x"36", x"7F", x"36", x"7F", x"36", x"36", x"00"); -- #  1F
+    x"3E", x"63", x"73", x"7B", x"6F", x"67", x"3E", x"00",  -- 0     00000
+    x"0C", x"0E", x"0C", x"0C", x"0C", x"0C", x"3F", x"00",  -- 1     00001
+    x"1E", x"33", x"30", x"1C", x"06", x"33", x"3F", x"00",  -- 2     00010
+    x"1E", x"33", x"30", x"1C", x"30", x"33", x"1E", x"00",  -- 3     00011
+    x"38", x"3C", x"36", x"33", x"7F", x"30", x"78", x"00",  -- 4     00100
+    x"3F", x"03", x"1F", x"30", x"30", x"33", x"1E", x"00",  -- 5     00101
+    x"1C", x"06", x"03", x"1F", x"33", x"33", x"1E", x"00",  -- 6     00110
+    x"3F", x"33", x"30", x"18", x"0C", x"0C", x"0C", x"00",  -- 7     00111
+    x"1E", x"33", x"33", x"1E", x"33", x"33", x"1E", x"00",  -- 8     01000
+    x"1E", x"33", x"33", x"3E", x"30", x"18", x"0E", x"00",  -- 9     01001
+    x"00", x"00", x"00", x"00", x"00", x"00", x"00", x"00",  -- ' '   01010
+    x"00", x"00", x"33", x"7F", x"7F", x"6B", x"63", x"00",  -- m     01011
+    x"00", x"00", x"3E", x"03", x"1E", x"30", x"1F", x"00",  -- s     01100
+    x"30", x"18", x"0C", x"18", x"30", x"00", x"7E", x"00",  -- <=    01101
+    x"0C", x"18", x"30", x"18", x"0C", x"00", x"7E", x"00",  -- >=    01110
+    x"00", x"30", x"49", x"06", x"30", x"49", x"06", x"00",  --  ~=   01111
+    x"00", x"00", x"00", x"00", x"00", x"00", x"00", x"00",  --' ' 10 10000
+    x"00", x"00", x"3F", x"00", x"00", x"3F", x"00", x"00",  -- =  11 10001
+    x"00", x"0C", x"0C", x"3F", x"0C", x"0C", x"00", x"00",  -- +  12 10010
+    x"00", x"00", x"00", x"3F", x"00", x"00", x"00", x"00",  -- -  13 10011
+    x"18", x"0C", x"06", x"03", x"06", x"0C", x"18", x"00",  -- <  14 10100
+    x"06", x"0C", x"18", x"30", x"18", x"0C", x"06", x"00",  -- >  15 10101
+    x"08", x"1C", x"36", x"63", x"41", x"00", x"00", x"00",  -- ^  16 10110
+    x"08", x"1C", x"36", x"63", x"41", x"00", x"00", x"00",  -- v  17 10111
+    x"18", x"0C", x"06", x"06", x"06", x"0C", x"18", x"00",  -- (  18 11000
+    x"06", x"0C", x"18", x"18", x"18", x"0C", x"06", x"00",  -- )  19 11001
+    x"00", x"0C", x"0C", x"00", x"00", x"0C", x"0C", x"00",  -- :  1A 11010
+    x"00", x"00", x"00", x"00", x"00", x"0C", x"0C", x"00",  -- .  1B 11011
+    x"00", x"00", x"00", x"00", x"00", x"0C", x"0C", x"06",  -- ,  1C 11100
+    x"1E", x"33", x"30", x"18", x"0C", x"00", x"0C", x"00",  -- ?  1D 11101
+    x"18", x"18", x"18", x"00", x"18", x"18", x"18", x"00",  -- |  1E 11110
+    x"36", x"36", x"7F", x"36", x"7F", x"36", x"36", x"00"); -- #  1F 11111
   
   SIGNAL t_r,t_g,t_b : unsigned(7 DOWNTO 0);
   SIGNAL t_hs,t_vs,t_de,t_fl : std_logic;
@@ -89,27 +91,30 @@ ARCHITECTURE rtl OF latest IS
   SUBTYPE uint20 IS natural RANGE 0 TO 65536*16-1;
   SIGNAL col : unsigned(7 DOWNTO 0);
   SIGNAL de,sense2,sense3 : std_logic;
-  SIGNAL lowp : natural RANGE 0 TO 63;
+  SIGNAL lowcpt : natural RANGE 0 TO 255;
+  SIGNAL sense_p,sense_p2,tog_l : std_logic;
   
-  SIGNAL vsize,vsize5,hsize : natural RANGE 0 TO 4095;
+  SIGNAL vsize,vsize5,hsize,vrect,hrect : natural RANGE 0 TO 4095;
   SIGNAL vcpt,hcpt,vcpt5,hcpt2 : natural RANGE 0 TO 4095;
-  SIGNAL fcpt : natural RANGE 0 TO 31;
+  SIGNAL fcpt : natural RANGE 0 TO 15;
   SIGNAL vsize5_up : std_logic;
   
-  CONSTANT COLS : natural :=20;
+  CONSTANT COLS : natural :=22;
   SIGNAL txt,txt2 : unsigned(0 TO COLS*5-1);
-  SIGNAL rect,alt,calc,calc2,pend,tog : std_logic :='0';
-
+  SIGNAL rect,alt,calc,calc2,pend,alter : std_logic :='0';
+  SIGNAL pos : unsigned(0 TO 4);
+  
   SIGNAL synth : integer RANGE -65536*16384 TO 65536*16384-1;
   SIGNAL tick : std_logic :='0';
   SIGNAL timer,lat,lat2,lat3,lat4,tref,tdif : uint20;
   
-  SIGNAL cpt_bcd ,bcd ,cpt_bcd2,bcd2 : unsigned(19 DOWNTO 0);
-  SIGNAL cpt_bcd3,bcd3,cpt_bcd4,bcd4 : unsigned(19 DOWNTO 0);
+  SIGNAL cpt_bcd ,bcd ,cpt_bcd2,bcd2 : unsigned(23 DOWNTO 0);
+  SIGNAL cpt_bcd3,bcd3,cpt_bcd4,bcd4 : unsigned(23 DOWNTO 0);
   SIGNAL cre,cre2,cre3,cre4 : uint20;
   
   SIGNAL vligne,ligne : natural RANGE 0 TO 7;
   SIGNAL timeout : natural RANGE 0 TO 127;
+  SIGNAL timeloop : natural RANGE 0 TO 31;
   SIGNAL iter,iter2 : natural RANGE 0 TO 35;
   TYPE arr_uint20 IS ARRAY(natural RANGE <>) OF uint20;
   SIGNAL mem : arr_uint20(0 TO 31);
@@ -140,7 +145,7 @@ BEGIN
   
   ----------------------------------------------------------
   Megamix:PROCESS(i_clk) IS
-    VARIABLE txt_v  : unsigned(0 TO 20*5-1);
+    VARIABLE txt_v  : unsigned(0 TO 22*5-1);
     VARIABLE char_v : unsigned(4 DOWNTO 0);
   BEGIN
     IF rising_edge(i_clk) THEN
@@ -196,24 +201,23 @@ BEGIN
         IF i_vs='1' AND t_vs='0' THEN
           fcpt<=fcpt+1;
           timeout<=timeout+1;
-          IF fcpt>=3 THEN
+          IF fcpt>=5 THEN
             fcpt<=0;
             alt<=NOT alt;
-            tog<='1';
+            alter<='1';
           END IF;
         END IF;
         
         ----------------------------------
-        IF sense='1' AND lowp<63 THEN
-          lowp<=lowp+1;
-        ELSIF sense='0' AND lowp>0 THEN
-          lowp<=lowp-1;
+        sense_p<=sense;
+        sense_p2<=sense_p;
+        IF sense_p2/=sense_p THEN
+          lowcpt<=0;
+        ELSIF lowcpt<100 THEN
+          lowcpt<=lowcpt+1;
         END IF;
-        
-        IF lowp=0 THEN
-          sense2<='0';
-        ELSIF lowp=63 THEN
-          sense2<='1';
+        IF lowcpt=100 THEN
+          sense2<=sense_p;
         END IF;
         
         ----------------------------------
@@ -221,6 +225,7 @@ BEGIN
         sense3<=sense2;
         IF sense2='1' AND sense3='0' AND pend='1' THEN
           timeout<=0;
+          timeloop<=0;
           lat<=timer-tref;
           calc<='1';
           pend<='0';
@@ -229,23 +234,37 @@ BEGIN
         IF timeout>63 THEN
           timeout<=0;
           ligne<=ligne+1;
+          timeloop<=timeloop+1;
           IF ligne=4 THEN
             ligne<=0; 
           END IF;
         END IF;
         
+        IF timeloop>15 AND ena='1' THEN
+          tog_l<=NOT tog_l;
+          timeloop<=0;
+        END IF;
+        IF ena='0' THEN
+          timeloop<=0;
+        END IF;
+        tog<=tog_l;
+        
         ----------------------------------
-        IF vligne=ligne AND vcpt5<8 AND (hcpt<16 OR hcpt>=hsize-16 ) THEN
+        vrect<=vsize/16;
+        hrect<=hsize/16;
+        
+        IF vligne=ligne AND vcpt5<vrect AND (hcpt<hrect OR hcpt>=hsize-hrect)
+        THEN
           rect<='1';
         ELSE
           rect<='0';
         END IF;
         
         IF vligne=ligne AND vcpt5=0 AND hcpt=0 AND i_de='1' THEN
-          IF alt='1' and tog='1' THEN
+          IF alt='1' and alter='1' THEN
             tref<=timer;
             pend<='1';
-            tog<='0';
+            alter<='0';
           END IF;
           led<=alt;
         END IF;
@@ -340,10 +359,10 @@ BEGIN
     FUNCTION bcdinc(inc : std_logic;
                     a   : unsigned) return unsigned IS
       VARIABLE c : std_logic :='0';
-      VARIABLE v : unsigned(19 DOWNTO 0) :=a;
+      VARIABLE v : unsigned(23 DOWNTO 0) :=a;
     BEGIN
       IF inc='0' THEN c:='1'; END IF;
-      FOR i IN 0 TO 4 LOOP
+      FOR i IN 0 TO 5 LOOP
         IF i=2 AND inc='1' THEN c:='1'; END IF;
         IF c='1' THEN
           IF v(i*4+3 DOWNTO i*4)=x"A" THEN
@@ -365,7 +384,7 @@ BEGIN
     IF rising_edge(i_clk) THEN
       ----------------------------------
       IF calc='1' THEN
-        cpt_bcd <=x"A0000";
+        cpt_bcd <=x"AA0000";
         cre<=0;
       ELSIF cre+100<lat THEN
         cre<=cre+100;
@@ -379,7 +398,7 @@ BEGIN
 
       ----------------------------------
       IF calc2='1' THEN
-        cpt_bcd2 <=x"A0000";
+        cpt_bcd2 <=x"AA0000";
         cre2<=0;
       ELSIF cre2+100<lat2 THEN
         cre2<=cre2+100;
@@ -393,7 +412,7 @@ BEGIN
       
       ----------------------------------
       IF calc2='1' THEN
-        cpt_bcd3 <=x"A0000";
+        cpt_bcd3 <=x"AA0000";
         cre3<=0;
       ELSIF cre3+100<lat3 THEN
         cre3<=cre3+100;
@@ -407,7 +426,7 @@ BEGIN
       
       ----------------------------------
       IF calc2='1' THEN
-        cpt_bcd4 <=x"A0000";
+        cpt_bcd4 <=x"AA0000";
         cre4<=0;
       ELSIF cre4+100<lat4 THEN
         cre4<=cre4+100;
@@ -421,8 +440,11 @@ BEGIN
     ----------------------------------
     END IF;
   END PROCESS Divi;
+
+  pos<="11111" WHEN POST=1 ELSE "10000";
   
-  txt<="10000" & "10000" & 
+  txt<=pos & "10000" & 
+        '0' & bcd(23 DOWNTO 20) &
         '0' & bcd(19 DOWNTO 16) &
         '0' & bcd(15 DOWNTO 12) &
         "11011" &
@@ -432,6 +454,7 @@ BEGIN
         "01011" & "01100" & -- ms
         "10000" &
         "01111" &
+        '0' & bcd2(23 DOWNTO 20) &
         '0' & bcd2(19 DOWNTO 16) &
         '0' & bcd2(15 DOWNTO 12) &
         "11011" &
@@ -441,6 +464,7 @@ BEGIN
         "01011" & "01100"; -- ms
 
   txt2<="10000" & "01110" & 
+        '0' & bcd3(23 DOWNTO 20) &
         '0' & bcd3(19 DOWNTO 16) &
         '0' & bcd3(15 DOWNTO 12) &
         "11011" &
@@ -450,6 +474,7 @@ BEGIN
         "01011" & "01100" & -- ms
         "10000" &
         "01101" &
+        '0' & bcd4(23 DOWNTO 20) &
         '0' & bcd4(19 DOWNTO 16) &
         '0' & bcd4(15 DOWNTO 12) &
         "11011" &

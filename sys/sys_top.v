@@ -171,7 +171,7 @@ wire led_locked;
 `ifndef DUAL_SDRAM
 	assign LED_POWER = (SW[3] | led_p) ? 1'bZ : 1'b0;
 	assign LED_HDD   = (SW[3] | led_d) ? 1'bZ : 1'b0;
-	assign LED_USER  = lat_led; // (SW[3] | led_u) ? 1'bZ : 1'b0;
+	assign LED_USER  = (lat_ena)?lat_led:lat_led2; // (SW[3] | led_u) ? 1'bZ : 1'b0;
 `endif
 
 //LEDs on main board
@@ -531,9 +531,11 @@ wire         vbuf_write;
 wire  [23:0] hdmi_data;
 wire         hdmi_vs, hdmi_hs, hdmi_de;
 
-wire lat_hs,lat_vs,lat_fl,lat_de;
-wire [7:0] lat_r,lat_g,lat_b;
-wire lat_led,lat_sense;
+wire lat_hs,lat_vs,lat_fl,lat_de,lat2_hs,lat2_vs,lat2_de;
+wire [7:0] lat_r,lat_g,lat_b,lat2_r,lat2_g,lat2_b;
+wire lat_led,lat_led2,lat_sense;
+wire lat_tog,lat_tog2;
+reg lat_ena;
 
 ascal 
 #(
@@ -564,12 +566,12 @@ ascal
 
 	.o_clk    (clk_hdmi),
 	.o_ce     (1),
-	.o_r      (hdmi_data[23:16]),
-	.o_g      (hdmi_data[15:8]),
-	.o_b      (hdmi_data[7:0]),
-	.o_hs     (hdmi_hs),
-	.o_vs     (hdmi_vs),
-	.o_de     (hdmi_de),
+	.o_r      (lat2_r),
+	.o_g      (lat2_g),
+	.o_b      (lat2_b),
+	.o_hs     (lat2_hs),
+	.o_vs     (lat2_vs),
+	.o_de     (lat2_de),
 	.o_lltune (lltune),
 	.htotal   (WIDTH + HFP + HBP + HS),
 	.hsstart  (WIDTH + HFP),
@@ -613,7 +615,6 @@ ascal
 	.avl_byteenable   (vbuf_byteenable)
 );
 
-
 latest
 #(.FREQ(50000000))
 latest
@@ -634,11 +635,54 @@ latest
   .o_vs(lat_vs),
   .o_de(lat_de),
   .o_fl(lat_fl),
-  .ena(1),
+  .tog(lat_tog),
+  .ena(lat_ena),
   .led(lat_led),
   .sense(lat_sense),
   .refclk(FPGA_CLK1_50)
-    );
+);
+
+latest
+#(.FREQ(50000000), .POST(1))
+latest2
+(
+  .i_r(lat2_r),
+  .i_g(lat2_g),
+  .i_b(lat2_b),
+  .i_hs(lat2_hs),
+  .i_vs(lat2_vs),
+  .i_de(lat2_de),
+  .i_fl(0),
+  .i_en(1),
+  .i_clk(clk_hdmi),
+  .o_r(hdmi_data[23:16]),
+  .o_g(hdmi_data[15:8]),
+  .o_b(hdmi_data[7:0]),
+  .o_hs(hdmi_hs),
+  .o_vs(hdmi_vs),
+  .o_de(hdmi_de),
+  .tog(lat_tog2),
+  .ena(~lat_ena),
+  .led(lat_led2),
+  .sense(lat_sense),
+  .refclk(FPGA_CLK1_50)
+);
+
+always @(posedge FPGA_CLK1_50) begin
+    reg lat_togd,lat_togd2,lat_togdd,lat_togdd2;
+
+    lat_togd<=lat_tog;
+    lat_togdd<=lat_togd;
+    lat_togd2<=lat_tog2;
+    lat_togdd2<=lat_togd2;
+    
+    if (lat_togdd!=lat_togd)
+      lat_ena<=0;
+    else if (lat_togdd2!=lat_togd2)
+      lat_ena<=1;
+    
+end
+
 
 
 reg        FB_EN     = 0;
@@ -1156,7 +1200,7 @@ alsa alsa
 //assign USER_IO[0] =                       !user_out[0]  ? 1'b0 : 1'bZ;
 //assign USER_IO[1] =                       !user_out[1]  ? 1'b0 : 1'bZ;
 assign lat_sense = USER_IO[1];
-assign USER_IO[0] = lat_led;
+assign USER_IO[0] = (lat_ena)?lat_led:lat_led2;
 
 assign USER_IO[2] = !(SW[1] ? HDMI_I2S   : user_out[2]) ? 1'b0 : 1'bZ;
 assign USER_IO[3] =                       !user_out[3]  ? 1'b0 : 1'bZ;
